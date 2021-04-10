@@ -1,0 +1,45 @@
+apiVersion: k3d.io/v1alpha2
+kind: Simple
+name: local
+servers: 1
+agents: 0 # number of nodes
+kubeAPI:
+  hostIP: "127.0.0.1" # where the Kubernetes API will be listening on
+  hostPort: "6443" # where the Kubernetes API listening port will be mapped to on your host system
+# image: rancher/k3s:v1.20.4-k3s1 # same as `--image rancher/k3s:v1.20.4-k3s1`
+# volumes:
+#   - volume: /my/host/path:/path/in/node
+#     nodeFilters:
+#       - server[0]
+#       - agent[*]
+ports:
+  - port: 80:80
+    nodeFilters:
+      - loadbalancer
+  - port: 443:443
+    nodeFilters:
+      - loadbalancer
+registries:
+  create: false
+  config: | # define contents of the `registries.yaml` file (or reference a file); same as `--registry-config /path/to/config.yaml`
+    mirrors:
+      docker.io:
+        endpoint:
+          - https://docker-mirror.ops.fieldbox.io
+options:
+  k3d: # k3d runtime settings
+    wait: true # wait for cluster to be usable before returining; same as `--wait` (default: true)
+    timeout: "60s" # wait timeout before aborting; same as `--timeout 60s`
+    disableLoadbalancer: false # same as `--no-lb`
+    disableImageVolume: false # same as `--no-image-volume`
+    disableRollback: false # same as `--no-Rollback`
+    disableHostIPInjection: false # same as `--no-hostip`
+  k3s: # options passed on to K3s itself
+    extraServerArgs:
+      - --no-deploy=traefik
+    extraAgentArgs: [] # addditional arguments passed to the `k3s agent` command; same as `--k3s-agent-arg`
+  kubeconfig:
+    updateDefaultKubeconfig: true
+    switchCurrentContext: true
+  # runtime: # runtime (docker) specific options
+  #   gpuRequest: all # same as `--gpus all`

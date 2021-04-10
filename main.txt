@@ -1,0 +1,48 @@
+provider "docker" {}
+
+provider "helm" {
+  kubernetes {
+    config_path = "~/.kube/k3d-${var.k3d_cluster_name[0]}"
+  }
+}
+
+resource "null_resource" "cluster" {
+  for_each = toset(var.k3d_cluster_name)
+  provisioner "local-exec" {
+    command = "k3d cluster create ${each.key} --config manifests/k3d-config-${var.k3d_cluster_name}.yaml && k3d kubeconfig get ${var.k3d_cluster_name} > ~/.kube/k3d-${var.k3d_cluster_name}"
+  }
+}
+
+resource "null_resource" "cluster_delete" {
+  for_each = toset(var.k3d_cluster_name)
+  provisioner "local-exec" {
+    command = "k3d cluster delete ${each.key}"
+    when    = destroy
+  }
+}
+
+data "docker_network" "k3d" {
+  for_each = toset(var.k3d_cluster_name)
+  depends_on = [
+    null_resource.cluster
+  ]
+  name = "k3d-${each.key}"
+}
+
+
+resource "helm_release" "nginx" {
+  name       = "nginx"
+
+  repository = "https://kubernetes.github.io/ingress-nginx"
+  chart      = "ingress-nginx"
+
+  set {
+    name  = "service.type"
+    value = "ClusterIP"
+  }
+
+ depends_on = [
+    null_resource.cluster,
+  ]
+}
+
